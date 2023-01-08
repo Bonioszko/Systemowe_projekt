@@ -42,103 +42,123 @@ int main(int argc, char *argv[])
     int fifo_queue;
     int fifo_queue_child;
     int id;
+    int id_main;
     int status_proccess_to_create;
     int name_proccess_to_create;
     char message[100];
     char name_to_proccess[100];
     char command[100];
     char fifo_to_proccess[100];
-    status = mkfifo(fifo_name, 0640);
-    printf("dd%sdd \n", fifo_name);
-    printf("Status kplejki %d \n", status);
-    perror("Blad");
-    if (status == -1)
-    {
-        printf("Blad przy tworzeniu kolejki \n");
-    }
-    printf("kolejka %d \n", fifo_queue);
-    fifo_queue = open(fifo_name, O_NDELAY, O_RDONLY);
 
-    if (fifo_queue == -1)
-    {
-        printf("Blad przy otwieraniu kolejki \n");
-    }
     char buf_message[500];
     int rs;
-    while (1)
+
+    id_main = fork();
+    if (id_main == 0)
     {
-        rs = read(fifo_queue, buf_message, 500);
-        printf("odczytano: %d\n", rs);
-        // tutaj wstawic rs>0
-        if (rs > 0)
+        status = mkfifo(fifo_name, 0640);
+        printf("dd%sdd \n", fifo_name);
+        printf("Status kplejki %d \n", status);
+        perror("Blad");
+        if (status == -1)
         {
-            printf("dostalełem %s\n", buf_message);
-            id = fork();
-            if (id == 0)
+            printf("Blad przy tworzeniu kolejki \n");
+        }
+        printf("kolejka %d \n", fifo_queue);
+        fifo_queue = open(fifo_name, O_RDWR);
+
+        if (fifo_queue == -1)
+        {
+            printf("Blad przy otwieraniu kolejki \n");
+        }
+        while (1)
+        {
+            rs = read(fifo_queue, buf_message, 500);
+            printf("odczytano: %d\n", rs);
+            // tutaj wstawic rs>0
+            if (rs > 0)
             {
-                fifo_queue_child = open(buf_message, O_WRONLY);
-                close(STDOUT_FILENO);
-                dup(fifo_queue_child);
-                close(fifo_queue_child);
-                execlp("ls", "ls", NULL);
-            }
-            else
-            {
-                /// tutaj bedzie czekal na uczytkownika i zczytuje z lini kilka danych
-                scanf("Podaj co myslisz%s %s %s", name_to_proccess, command, fifo_to_proccess);
-                printf("%s %s %s \n", name_to_proccess, command, fifo_to_proccess);
-                status_proccess_to_create = mkfifo(fifo_to_proccess, 0640);
-                if (status_proccess_to_create == -1)
+                printf("dostalełem %s\n", buf_message);
+                id = fork();
+                if (id == 0)
                 {
-                    perror("Blad w tworzeniu kolejki:");
-                }
-                name_proccess_to_create = open(fifo_to_proccess, O_RDWR);
-                if (name_proccess_to_create == -1)
-                {
-                    perror("otwarcie kolejki");
+                    printf("polo\n");
+                    fifo_queue_child = open(buf_message, O_WRONLY);
+                    close(STDOUT_FILENO);
+                    dup(fifo_queue_child);
+                    close(fifo_queue_child);
+                    execlp("ls", "ls", NULL);
                 }
             }
 
-            printf("1\n");
+            sleep(1);
         }
-        printf("wokrking...\n");
-        sleep(1);
     }
+    else
+    {
+        while (1)
+        {
+            printf("podaj komende: ");
+            /// tutaj bedzie czekal na uczytkownika i zczytuje z lini kilka danych
+            scanf("%s %s %s", name_to_proccess, command, fifo_to_proccess);
+            printf("koko %s %s %s\n", name_to_proccess, command, fifo_to_proccess);
+            status_proccess_to_create = mkfifo(fifo_to_proccess, 0640);
+            if (status_proccess_to_create == -1)
+            {
+                perror("Blad w tworzeniu kolejki:");
+            }
+            // tutaj zmienic na fifo_to_proccess
+            name_proccess_to_create = open(fifo_to_proccess, O_RDWR);
+            if (name_proccess_to_create == -1)
+            {
+                perror("otwarcie kolejki");
+            }
+            sleep(1);
+            fifo_queue = open(fifo_name, O_WRONLY);
+            // na razie na sztywno, ale musze zmienic
+            write(fifo_queue, fifo_to_proccess, 100);
+            read(name_proccess_to_create, buf_message, 500);
+            printf("%s\n", buf_message);
+            close(name_proccess_to_create);
+            close(fifo_queue);
+        }
+    }
+
     close(fifo_queue);
     printf("1 \n");
-    // int pdesk;
-    // int status;
-
-    // status = mkfifo("serwer2", 0640);
-    // printf("Status kolejki: %d\n", status);
-    // pdesk = open("serwer2", O_RDONLY);
-    // printf("Polaczono %d\n", pdesk);
-    // char buf[100];
-    // int cdesk;
-    // int id;
-    // int rs;
-    // while (1)
-    // {
-    //     rs = read(pdesk, buf, 100);
-    //     printf("Odczytano: %d\n", rs);
-    //     if (rs > 0)
-    //     {
-    //         printf("Message received! %s\n", buf);
-    //         id = fork();
-    //         if (id == 0)
-    //         {
-    //             cdesk = open(buf, O_WRONLY);
-    //             close(STDOUT_FILENO);
-    //             dup(cdesk);
-    //             close(cdesk);
-    //             execlp("ls", "ls", NULL);
-    //         }
-    //         close(cdesk);
-    //     }
-    //     printf("working...\n");
-    //     sleep(1);
-    // }
-    // close(pdesk);
-
     return 0;
 }
+
+// int pdesk;
+// int status;
+
+// status = mkfifo("serwer2", 0640);
+// printf("Status kolejki: %d\n", status);
+// pdesk = open("serwer2", O_RDONLY);
+// printf("Polaczono %d\n", pdesk);
+// char buf[100];
+// int cdesk;
+// int id;
+// int rs;
+// while (1)
+// {
+//     rs = read(pdesk, buf, 100);
+//     printf("Odczytano: %d\n", rs);
+//     if (rs > 0)
+//     {
+//         printf("Message received! %s\n", buf);
+//         id = fork();
+//         if (id == 0)
+//         {
+//             cdesk = open(buf, O_WRONLY);
+//             close(STDOUT_FILENO);
+//             dup(cdesk);
+//             close(cdesk);
+//             execlp("ls", "ls", NULL);
+//         }
+//         close(cdesk);
+//     }
+//     printf("working...\n");
+//     sleep(1);
+// }
+// close(pdesk);
